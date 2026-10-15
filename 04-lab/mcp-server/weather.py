@@ -2,6 +2,25 @@ from typing import Any
 import asyncio
 import httpx
 import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
+    try:
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+# Load .env từ thư mục hiện tại hoặc thư mục gốc
+load_dotenv()
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
 from mcp.server.fastmcp import FastMCP
 
 # Initialize FastMCP server
@@ -131,12 +150,48 @@ UV Index: {day_data['uv']}
     return "\n---\n".join(forecasts)
 
 @mcp.tool()
+async def get_clothing_advice(temperature_c: float, weather_condition: str = "normal") -> str:
+    """Get personalized clothing and accessory recommendations based on temperature and weather conditions.
+
+    Args:
+        temperature_c: Current temperature in Celsius (°C)
+        weather_condition: Weather condition description (e.g. "Sunny", "Rain", "Cold", "Windy", "Fog")
+    """
+    advice = []
+    temp = float(temperature_c)
+    cond = str(weather_condition).lower()
+
+    if temp >= 32:
+        advice.append("Wear lightweight, breathable cotton clothing like shorts or short skirts.")
+    elif 26 <= temp < 32:
+        advice.append("Wear comfortable short-sleeve shirts, T-shirts, and light pants or jeans.")
+    elif 20 <= temp < 26:
+        advice.append("Wear long-sleeve shirts or a light jacket/cardigan.")
+    elif 15 <= temp < 20:
+        advice.append("Wear a light sweater, hoodie, or medium-warm jacket with long pants.")
+    elif 10 <= temp < 15:
+        advice.append("Wear a thick sweater, coat, or puffer jacket with a warm scarf.")
+    else:
+        advice.append("Wear thermal layers, heavy down coat, gloves, beanie, and a warm scarf.")
+
+    if any(w in cond for w in ["rain", "drizzle", "shower", "thunder", "mưa"]):
+        advice.append("Bring an umbrella or raincoat, and wear waterproof shoes.")
+    elif any(w in cond for w in ["sun", "clear", "nắng"]):
+        advice.append("Wear a sun hat, UV-protective sunglasses, and apply sunscreen.")
+    elif any(w in cond for w in ["wind", "storm", "gió"]):
+        advice.append("Wear a windproof jacket and avoid wearing loose accessories.")
+    elif any(w in cond for w in ["fog", "mist", "haze", "sương"]):
+        advice.append("Wear a face mask to protect respiratory health.")
+
+    return "\n- ".join(["Recommended attire:"] + advice)
+
+@mcp.tool()
 async def health_check() -> str:
     """Health check endpoint for deployment verification."""
     return "✅ Weather MCP Server is running! Ready to provide weather data for Australian cities and worldwide."
 
 print("✅ MCP server initialized with Streamable HTTP transport")
-print("🔧 Available tools: get_current_weather, get_forecast, health_check")
+print("🔧 Available tools: get_current_weather, get_forecast, get_clothing_advice, health_check")
 
 if __name__ == "__main__":
     import sys
